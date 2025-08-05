@@ -1,0 +1,111 @@
+spring:
+  application:
+    name: puppies-query-api
+  
+  # Read Database Configuration (Query Store)
+  datasource:
+    url: jdbc:postgresql://localhost:5433/puppies_read
+    username: admin
+    password: admin123
+    driver-class-name: org.postgresql.Driver
+
+  # No Flyway migrations needed - Query API only reads data
+  # Database schema is managed by Sync Worker for read store
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Changed from 'update' to 'validate' - Flyway manages schema
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  # Redis Configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+  
+# Query API doesn't need RabbitMQ - only reads from database
+  
+  # Cache Configuration
+  cache:
+    type: redis
+    cache-names:
+      - posts
+      - users
+      - feed
+    redis:
+      time-to-live: 600000 # 10 minutes
+
+# Query API doesn't handle file uploads
+
+# JWT Configuration
+jwt:
+  secret: mySecretKey123456789012345678901234567890 # Use a stronger secret in production
+  expiration: 86400000 # 24 hours in milliseconds
+
+# Query API doesn't handle file storage
+
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /v3/api-docs
+
+# Server Configuration
+server:
+  port: 8082  # Query API port
+
+# CQRS Configuration
+cqrs:
+  separated-stores: false  # 🔄 TEMPORARILY DISABLED - Starting with single DB first
+
+# Multi-datasource configuration is now integrated in the main spring section above
+
+# Logging
+logging:
+  level:
+    com.puppies.api: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.cache: DEBUG
+    org.flywaydb: INFO
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  
+  h2:
+    console:
+      enabled: true
+  
+  # Disable Redis and RabbitMQ for tests
+  data:
+    redis:
+      repositories:
+        enabled: false
+  
+  rabbitmq:
+    host: localhost
+    port: 5673 # Different port to avoid conflicts
+  
+  cache:
+    type: simple

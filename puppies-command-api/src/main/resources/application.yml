@@ -1,0 +1,123 @@
+spring:
+  application:
+    name: puppies-command-api
+  
+  # Write Database Configuration (Command Store)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/puppies_write
+    username: admin
+    password: admin123
+    driver-class-name: org.postgresql.Driver
+
+  # Flyway Configuration for Write Store
+  flyway:
+    url: jdbc:postgresql://localhost:5432/puppies_write
+    user: admin
+    password: admin123
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    enabled: true
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Changed from 'update' to 'validate' - Flyway manages schema
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+
+  
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 1000ms
+          max-attempts: 3
+  
+
+
+  # File Upload Configuration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# JWT Configuration
+jwt:
+  secret: mySecretKey123456789012345678901234567890 # Use a stronger secret in production
+  expiration: 86400000 # 24 hours in milliseconds
+
+# File Storage Configuration
+file:
+  upload-dir: ./uploads
+  base-url: http://localhost:8081/api/files
+
+# Server Configuration
+server:
+  port: 8081  # Command API port
+
+# CQRS Configuration - Command API only handles writes
+cqrs:
+  separated-stores: false  # This service only handles commands
+
+# Multi-datasource configuration is now integrated in the main spring section above
+
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /v3/api-docs
+
+# Logging
+logging:
+  level:
+    com.puppies.api: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.cache: DEBUG
+    org.flywaydb: INFO
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  
+  h2:
+    console:
+      enabled: true
+  
+  # Disable Redis and RabbitMQ for tests
+  data:
+    redis:
+      repositories:
+        enabled: false
+  
+  rabbitmq:
+    host: localhost
+    port: 5673 # Different port to avoid conflicts
+  
+  cache:
+    type: simple
