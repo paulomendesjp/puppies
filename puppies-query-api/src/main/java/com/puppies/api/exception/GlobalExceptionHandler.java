@@ -1,5 +1,6 @@
 package com.puppies.api.exception;
 
+import com.puppies.api.read.dto.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,7 +60,7 @@ public class GlobalExceptionHandler {
                 .message(ex.getMessage())
                 .build();
 
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
     /**
@@ -164,63 +165,4 @@ public class GlobalExceptionHandler {
         return ResponseEntity.internalServerError().body(errorResponse);
     }
 
-    /**
-     * Standard error response format.
-     */
-    public static class ErrorResponse {
-        public final LocalDateTime timestamp;
-        public final int status;
-        public final String error;
-        public final String message;
-        public final Object details;
-
-        private ErrorResponse(LocalDateTime timestamp, int status, String error, String message, Object details) {
-            this.timestamp = timestamp;
-            this.status = status;
-            this.error = error;
-            this.message = message;
-            this.details = details;
-        }
-
-        public static ErrorResponseBuilder builder() {
-            return new ErrorResponseBuilder();
-        }
-
-        public static class ErrorResponseBuilder {
-            private LocalDateTime timestamp;
-            private int status;
-            private String error;
-            private String message;
-            private Object details;
-
-            public ErrorResponseBuilder timestamp(LocalDateTime timestamp) {
-                this.timestamp = timestamp;
-                return this;
-            }
-
-            public ErrorResponseBuilder status(int status) {
-                this.status = status;
-                return this;
-            }
-
-            public ErrorResponseBuilder error(String error) {
-                this.error = error;
-                return this;
-            }
-
-            public ErrorResponseBuilder message(String message) {
-                this.message = message;
-                return this;
-            }
-
-            public ErrorResponseBuilder details(Object details) {
-                this.details = details;
-                return this;
-            }
-
-            public ErrorResponse build() {
-                return new ErrorResponse(timestamp, status, error, message, details);
-            }
-        }
-    }
 }

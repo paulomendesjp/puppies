@@ -1,5 +1,6 @@
 package com.puppies.api.config;
 
+import com.puppies.api.common.constants.QueryApiConstants;
 import com.puppies.api.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -54,37 +55,15 @@ public class SecurityConfig {
             // Configure authorization - mix of public and authenticated endpoints
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints (no authentication required)
-                .requestMatchers("/api/posts").permitAll()             // All posts
-                .requestMatchers("/api/posts/{id}").permitAll()        // Single post
-                .requestMatchers("/api/posts/trending").permitAll()    // Trending posts
-                .requestMatchers("/api/posts/popular").permitAll()     // Popular posts
-                .requestMatchers("/api/posts/search").permitAll()      // Search posts
-                .requestMatchers("/api/posts/author/{authorId}").permitAll() // Posts by author ID
-                .requestMatchers("/api/feed/trending").permitAll()     // Global trending feed
-                .requestMatchers("/api/feed/discover").permitAll()     // Discovery feed
-                .requestMatchers("/api/users/top-creators").permitAll() // Top creators
-                .requestMatchers("/api/users/top-liked").permitAll()   // Top liked users
-                .requestMatchers("/api/users/most-active").permitAll() // Most active users
-                .requestMatchers("/api/users/search").permitAll()      // Search users
-                .requestMatchers("/api/users/prolific").permitAll()    // Prolific users
-                .requestMatchers("/api/cache/**").permitAll()          // Cache stats
-                .requestMatchers("/actuator/**").permitAll()           // Health checks
-                .requestMatchers("/error").permitAll()                 // Error endpoint
-                
-                // Swagger/OpenAPI endpoints
-                .requestMatchers("/swagger-ui/**").permitAll()         // Swagger UI
-                .requestMatchers("/swagger-ui.html").permitAll()       // Swagger UI HTML
-                .requestMatchers("/v3/api-docs/**").permitAll()        // OpenAPI docs
-                .requestMatchers("/v3/api-docs.yaml").permitAll()      // OpenAPI YAML
-                .requestMatchers("/swagger-resources/**").permitAll()  // Swagger resources
-                .requestMatchers("/webjars/**").permitAll()            // Swagger static files
+                .requestMatchers(QueryApiConstants.ApiUrls.PUBLIC_POST_ENDPOINTS).permitAll()
+                .requestMatchers(QueryApiConstants.ApiUrls.PUBLIC_FEED_ENDPOINTS).permitAll()
+                .requestMatchers(QueryApiConstants.ApiUrls.PUBLIC_USER_ENDPOINTS).permitAll()
+                .requestMatchers(QueryApiConstants.ApiUrls.PUBLIC_CACHE_ENDPOINTS).permitAll()
+                .requestMatchers(QueryApiConstants.ApiUrls.PUBLIC_SYSTEM_ENDPOINTS).permitAll()
+                .requestMatchers(QueryApiConstants.ApiUrls.PUBLIC_SWAGGER_ENDPOINTS).permitAll()
                 
                 // Authenticated endpoints (require JWT token)
-                .requestMatchers("/api/posts/my-posts").authenticated()   // User's own posts
-                .requestMatchers("/api/feed/user/{userId}").authenticated() // User feed
-                .requestMatchers("/api/feed/user/{userId}/**").authenticated() // User feed variants
-                .requestMatchers("/api/users/{userId}").authenticated()    // User profile by ID
-                .requestMatchers("/api/users/email/{email}").authenticated() // User by email
+                .requestMatchers(QueryApiConstants.ApiUrls.AUTHENTICATED_ENDPOINTS).authenticated()
                 
                 .anyRequest().permitAll()                              // Default: permit all
             )
@@ -111,11 +90,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Allow common frontend origins
-        configuration.setAllowedOriginPatterns(List.of(
-            "http://localhost:*",
-            "http://127.0.0.1:*", 
-            "https://localhost:*"
-        ));
+        configuration.setAllowedOriginPatterns(List.of(QueryApiConstants.ApiUrls.CORS_ORIGIN_PATTERNS));
         
         // Allow read-only HTTP methods (Query API should be read-only)
         configuration.setAllowedMethods(List.of(

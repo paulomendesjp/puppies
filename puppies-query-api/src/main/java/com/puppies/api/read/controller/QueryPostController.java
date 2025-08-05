@@ -120,53 +120,33 @@ public class QueryPostController {
                description = "Get posts created by the authenticated user (no need to pass user ID)",
                security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/my-posts")
-    public ResponseEntity<?> getMyPosts(
+    public ResponseEntity<Map<String, Object>> getMyPosts(
             Authentication authentication,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
         
-        if (authentication == null || authentication.getName() == null) {
-            return ResponseEntity.status(401)
-                    .body(Map.of("error", "Authentication required", 
-                               "message", "Please provide a valid JWT token"));
-        }
-        
         String userEmail = authentication.getName();
         log.debug("📝 Getting posts for authenticated user: {}", userEmail);
         
-        try {
-            // First, find the user by email to get their ID
-            ReadUserProfile userProfile = queryUserProfileService.getUserProfileByEmail(userEmail)
-                    .orElse(null);
-            
-            if (userProfile == null) {
-                return ResponseEntity.status(404)
-                        .body(Map.of("error", "User not found", 
-                                   "message", "User profile not found for email: " + userEmail));
-            }
-            
-            // Get posts by the user's ID
-            Page<ReadPost> posts = queryPostService.getPostsByAuthor(userProfile.getId(), page, size);
-            
-            log.info("📝 Retrieved {} posts for user {} (ID: {})", 
-                    posts.getNumberOfElements(), userEmail, userProfile.getId());
-            
-            return ResponseEntity.ok(Map.of(
-                "user", Map.of(
-                    "id", userProfile.getId(),
-                    "name", userProfile.getName(),
-                    "email", userProfile.getEmail(),
-                    "postsCount", userProfile.getPostsCount()
-                ),
-                "posts", posts
-            ));
-            
-        } catch (Exception e) {
-            log.error("Error getting posts for user {}", userEmail, e);
-            return ResponseEntity.status(500)
-                    .body(Map.of("error", "Internal server error", 
-                               "message", "Failed to retrieve user posts"));
-        }
+        // First, find the user by email to get their ID
+        ReadUserProfile userProfile = queryUserProfileService.getUserProfileByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User profile not found for email: " + userEmail));
+        
+        // Get posts by the user's ID
+        Page<ReadPost> posts = queryPostService.getPostsByAuthor(userProfile.getId(), page, size);
+        
+        log.info("📝 Retrieved {} posts for user {} (ID: {})", 
+                posts.getNumberOfElements(), userEmail, userProfile.getId());
+        
+        return ResponseEntity.ok(Map.of(
+            "user", Map.of(
+                "id", userProfile.getId(),
+                "name", userProfile.getName(),
+                "email", userProfile.getEmail(),
+                "postsCount", userProfile.getPostsCount()
+            ),
+            "posts", posts
+        ));
     }
 
     /**

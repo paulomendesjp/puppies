@@ -2,6 +2,7 @@ package com.puppies.api.read.service;
 
 import com.puppies.api.read.model.ReadPost;
 import com.puppies.api.read.repository.ReadPostRepository;
+import com.puppies.api.read.service.PostCacheService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,8 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -41,13 +41,7 @@ class QueryPostServiceTest {
     private ReadPostRepository readPostRepository;
     
     @Mock
-    private CacheManager cacheManager;
-    
-    @Mock
-    private Cache postContentCache;
-    
-    @Mock
-    private Cache postTotalCache;
+    private PostCacheService postCacheService;
 
     @InjectMocks
     private QueryPostService queryPostService;
@@ -97,9 +91,9 @@ class QueryPostServiceTest {
         Pageable pageable = PageRequest.of(page, size);
         Page<ReadPost> expectedPage = new PageImpl<>(testPosts, pageable, testPosts.size());
         
-        when(cacheManager.getCache("post_content")).thenReturn(postContentCache);
-        when(cacheManager.getCache("post_total")).thenReturn(postTotalCache);
-        when(postContentCache.get(anyString())).thenReturn(null); // Cache miss
+        // Mock cache miss
+        when(postCacheService.getCachedPostContent("posts", page, size)).thenReturn(null);
+        when(postCacheService.getCachedPostTotal("posts")).thenReturn(null);
         when(readPostRepository.findAllByOrderByCreatedAtDesc(pageable)).thenReturn(expectedPage);
 
         // When
@@ -112,6 +106,8 @@ class QueryPostServiceTest {
         assertThat(result.getTotalElements()).isEqualTo(2);
 
         verify(readPostRepository).findAllByOrderByCreatedAtDesc(pageable);
+        verify(postCacheService).cachePostContent("posts", page, size, testPosts);
+        verify(postCacheService).cachePostTotal("posts", 2L);
     }
 
     @Test
@@ -120,16 +116,9 @@ class QueryPostServiceTest {
         // Given
         int page = 0, size = 10;
         
-        when(cacheManager.getCache("post_content")).thenReturn(postContentCache);
-        when(cacheManager.getCache("post_total")).thenReturn(postTotalCache);
-        when(postContentCache.get("posts_content_0_10")).thenReturn(new Cache.ValueWrapper() {
-            @Override
-            public Object get() { return testPosts; }
-        });
-        when(postTotalCache.get("posts_total")).thenReturn(new Cache.ValueWrapper() {
-            @Override
-            public Object get() { return 2L; }
-        });
+        // Mock cache hit
+        when(postCacheService.getCachedPostContent("posts", page, size)).thenReturn(testPosts);
+        when(postCacheService.getCachedPostTotal("posts")).thenReturn(2L);
 
         // When
         Page<ReadPost> result = queryPostService.getAllPosts(page, size);
@@ -152,6 +141,9 @@ class QueryPostServiceTest {
         Pageable pageable = PageRequest.of(page, size);
         Page<ReadPost> expectedPage = new PageImpl<>(testPosts, pageable, testPosts.size());
         
+        // Mock cache miss
+        when(postCacheService.getCachedPostContent("trending_posts", page, size)).thenReturn(null);
+        when(postCacheService.getCachedPostTotal("trending_posts")).thenReturn(null);
         when(readPostRepository.findAllByOrderByPopularityScoreDesc(pageable))
                 .thenReturn(expectedPage);
 
@@ -165,6 +157,8 @@ class QueryPostServiceTest {
                 .isGreaterThanOrEqualTo(result.getContent().get(1).getPopularityScore());
 
         verify(readPostRepository).findAllByOrderByPopularityScoreDesc(pageable);
+        verify(postCacheService).cachePostContent("trending_posts", page, size, testPosts);
+        verify(postCacheService).cachePostTotal("trending_posts", 2L);
     }
 
     @Test
@@ -232,6 +226,9 @@ class QueryPostServiceTest {
         Pageable pageable = PageRequest.of(page, size);
         Page<ReadPost> expectedPage = new PageImpl<>(List.of(testPost), pageable, 1);
         
+        // Mock cache miss
+        when(postCacheService.getCachedPostContent("author_posts_" + authorId, page, size)).thenReturn(null);
+        when(postCacheService.getCachedPostTotal("author_posts_" + authorId)).thenReturn(null);
         when(readPostRepository.findByAuthorIdOrderByCreatedAtDesc(authorId, pageable))
                 .thenReturn(expectedPage);
 
@@ -244,6 +241,8 @@ class QueryPostServiceTest {
         assertThat(result.getContent().get(0).getAuthorId()).isEqualTo(authorId);
 
         verify(readPostRepository).findByAuthorIdOrderByCreatedAtDesc(authorId, pageable);
+        verify(postCacheService).cachePostContent("author_posts_" + authorId, page, size, List.of(testPost));
+        verify(postCacheService).cachePostTotal("author_posts_" + authorId, 1L);
     }
 
     @Test
@@ -254,6 +253,9 @@ class QueryPostServiceTest {
         Pageable pageable = PageRequest.of(page, size);
         Page<ReadPost> expectedPage = new PageImpl<>(List.of(testPost), pageable, 1);
         
+        // Mock cache miss
+        when(postCacheService.getCachedPostContent("popular_posts", page, size)).thenReturn(null);
+        when(postCacheService.getCachedPostTotal("popular_posts")).thenReturn(null);
         when(readPostRepository.findAllByOrderByLikeCountDesc(pageable))
                 .thenReturn(expectedPage);
 
@@ -266,6 +268,8 @@ class QueryPostServiceTest {
         assertThat(result.getContent().get(0).getLikeCount()).isGreaterThan(0L);
 
         verify(readPostRepository).findAllByOrderByLikeCountDesc(pageable);
+        verify(postCacheService).cachePostContent("popular_posts", page, size, List.of(testPost));
+        verify(postCacheService).cachePostTotal("popular_posts", 1L);
     }
 
     @Test
@@ -299,9 +303,9 @@ class QueryPostServiceTest {
         Pageable pageable = PageRequest.of(page, size);
         Page<ReadPost> emptyPage = new PageImpl<>(List.of(), pageable, 0);
         
-        when(cacheManager.getCache("post_content")).thenReturn(postContentCache);
-        when(cacheManager.getCache("post_total")).thenReturn(postTotalCache);
-        when(postContentCache.get(anyString())).thenReturn(null); // Cache miss
+        // Mock cache miss
+        when(postCacheService.getCachedPostContent("posts", page, size)).thenReturn(null);
+        when(postCacheService.getCachedPostTotal("posts")).thenReturn(null);
         when(readPostRepository.findAllByOrderByCreatedAtDesc(pageable)).thenReturn(emptyPage);
 
         // When
