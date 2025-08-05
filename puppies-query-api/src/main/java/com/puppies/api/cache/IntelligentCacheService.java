@@ -73,7 +73,7 @@ public class IntelligentCacheService {
             if (cached != null) {
                 cacheMetrics.recordHit(cacheLayer);
                 log.debug("🎯 Cache HIT for post {} in {} layer", postId, cacheLayer);
-                return Optional.of(type.cast(cached.get()));
+                return Optional.ofNullable(type.cast(cached.get()));
             }
         }
         
@@ -108,7 +108,7 @@ public class IntelligentCacheService {
             if (cached != null) {
                 cacheMetrics.recordHit(cacheLayer + "_feed");
                 updateUserEngagement(userId, true); // Cache hit = good engagement
-                return Optional.of(type.cast(cached.get()));
+                return Optional.ofNullable(type.cast(cached.get()));
             }
         }
         
@@ -130,12 +130,16 @@ public class IntelligentCacheService {
         PostMetrics metrics = postMetrics.computeIfAbsent(postId, k -> new PostMetrics(postId));
         
         metrics.incrementViews();
-        metrics.addRecentAccess(userId);
+        if (userId != null) {
+            metrics.addRecentAccess(userId);
+        }
         metrics.updateLastAccessed();
         
-        // Track user interaction for behavior analysis
-        UserCacheProfile profile = userProfiles.computeIfAbsent(userId, k -> new UserCacheProfile(userId));
-        profile.recordPostAccess(postId);
+        // Track user interaction for behavior analysis (only if user is logged in)
+        if (userId != null) {
+            UserCacheProfile profile = userProfiles.computeIfAbsent(userId, k -> new UserCacheProfile(userId));
+            profile.recordPostAccess(postId);
+        }
     }
 
     /**
@@ -289,6 +293,9 @@ public class IntelligentCacheService {
      * Build cache key for posts with user context.
      */
     private String buildPostCacheKey(Long postId, Long userId) {
+        if (userId == null) {
+            return String.format("post:%d:user:anonymous", postId);
+        }
         return String.format("post:%d:user:%d", postId, userId);
     }
 

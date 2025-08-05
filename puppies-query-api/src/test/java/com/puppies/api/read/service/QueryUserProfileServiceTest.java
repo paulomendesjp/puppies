@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -267,20 +268,15 @@ class QueryUserProfileServiceTest {
     }
 
     @Test
-    @DisplayName("Should handle negative limit for most active users")
-    void getMostActiveUsers_WithNegativeLimit_ShouldStillMakeRepositoryCall() {
+    @DisplayName("Should handle negative limit by validating it")
+    void getMostActiveUsers_WithNegativeLimit_ShouldValidateLimit() {
         // Given
         int negativeLimit = -1;
-        Pageable pageable = PageRequest.of(0, negativeLimit);
         
-        when(readUserProfileRepository.findMostActiveUsers(pageable)).thenReturn(List.of());
-
-        // When
-        List<ReadUserProfile> result = queryUserProfileService.getMostActiveUsers(negativeLimit);
-
-        // Then
-        assertThat(result).isNotNull();
-        verify(readUserProfileRepository).findMostActiveUsers(pageable);
+        // When & Then - Should throw IllegalArgumentException for invalid limit
+        assertThrows(IllegalArgumentException.class, () -> {
+            queryUserProfileService.getMostActiveUsers(negativeLimit);
+        });
     }
 
     @Test

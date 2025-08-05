@@ -180,6 +180,13 @@ public class PostMetrics {
     }
 
     /**
+     * Get total views as AtomicLong.
+     */
+    public AtomicLong getTotalViews() {
+        return totalViews;
+    }
+
+    /**
      * Mark this post as cache-warmed.
      */
     public void markAsWarmed() {

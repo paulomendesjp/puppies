@@ -30,6 +30,7 @@ public class UserCacheProfile {
     
     // Engagement patterns
     private final List<LocalDateTime> sessionTimes = Collections.synchronizedList(new ArrayList<>());
+    private final List<LocalDateTime> postAccessTimes = Collections.synchronizedList(new ArrayList<>());
     private String engagementLevel = "MEDIUM"; // LOW, MEDIUM, HIGH
 
     public UserCacheProfile(Long userId) {
@@ -42,6 +43,16 @@ public class UserCacheProfile {
     public void recordPostAccess(Long postId) {
         totalPostAccesses.incrementAndGet();
         accessedPosts.add(postId);
+        
+        // Track post access time for engagement calculation
+        LocalDateTime now = LocalDateTime.now();
+        postAccessTimes.add(now);
+        
+        // Keep only recent post access times (last 1000)
+        if (postAccessTimes.size() > 1000) {
+            postAccessTimes.remove(0);
+        }
+        
         updateLastActivity();
         
         // Keep only recent accessed posts (last 100)
@@ -75,6 +86,13 @@ public class UserCacheProfile {
     public void updateLastActivity() {
         this.lastActivity = LocalDateTime.now();
         recordSessionActivity();
+    }
+
+    /**
+     * Get last activity timestamp.
+     */
+    public LocalDateTime getLastActivity() {
+        return lastActivity;
     }
 
     /**
@@ -116,7 +134,7 @@ public class UserCacheProfile {
      */
     private long getAccessesInLastDay() {
         LocalDateTime dayAgo = LocalDateTime.now().minusDays(1);
-        return sessionTimes.stream()
+        return postAccessTimes.stream()
                 .mapToLong(time -> time.isAfter(dayAgo) ? 1 : 0)
                 .sum();
     }
@@ -157,6 +175,13 @@ public class UserCacheProfile {
      */
     public boolean isLowEngagement() {
         return "LOW".equals(engagementLevel);
+    }
+
+    /**
+     * Get current engagement level.
+     */
+    public String getEngagementLevel() {
+        return engagementLevel;
     }
 
     /**
@@ -209,23 +234,5 @@ public class UserCacheProfile {
         return lastActivity.isBefore(weekAgo) && isLowEngagement();
     }
 
-    /**
-     * Get profile summary for monitoring and debugging.
-     */
-    public Map<String, Object> getSummary() {
-        Map<String, Object> summary = new HashMap<>();
-        summary.put("userId", userId);
-        summary.put("engagementLevel", engagementLevel);
-        summary.put("totalAccesses", totalPostAccesses.get());
-        summary.put("cacheHitRate", String.format("%.2f%%", getCacheHitRate() * 100));
-        summary.put("recommendedTtlMinutes", getRecommendedCacheTtlMinutes());
-        summary.put("recommendedCacheCapacity", getRecommendedCacheCapacity());
-        summary.put("shouldPrioritize", shouldPrioritizeInCache());
-        summary.put("shouldArchive", shouldArchive());
-        summary.put("lastActivity", lastActivity);
-        summary.put("accessesLastDay", getAccessesInLastDay());
-        summary.put("sessionFrequency", String.format("%.1f/day", getSessionFrequency()));
-        
-        return summary;
-    }
+
 }

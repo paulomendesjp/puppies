@@ -275,8 +275,9 @@ class ReadStoreUpdateServiceTest {
 
         // When/Then
         assertThatThrownBy(() -> readStoreUpdateService.handlePostCreated(postCreatedEvent))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Database connection failed");
+                .isInstanceOf(ReadStoreUpdateService.ReadStoreUpdateException.class)
+                .hasMessage("Failed to process post creation event")
+                .hasCauseInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -288,8 +289,9 @@ class ReadStoreUpdateServiceTest {
 
         // When/Then
         assertThatThrownBy(() -> readStoreUpdateService.handlePostLiked(postLikedEvent))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Database update failed");
+                .isInstanceOf(ReadStoreUpdateService.ReadStoreUpdateException.class)
+                .hasMessage("Failed to process post like event")
+                .hasCauseInstanceOf(RuntimeException.class);
     }
 
     @Test

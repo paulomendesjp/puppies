@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -43,7 +44,10 @@ class QueryPostServiceTest {
     private CacheManager cacheManager;
     
     @Mock
-    private Cache cache;
+    private Cache postContentCache;
+    
+    @Mock
+    private Cache postTotalCache;
 
     @InjectMocks
     private QueryPostService queryPostService;
@@ -81,7 +85,8 @@ class QueryPostServiceTest {
                 .updatedAt(LocalDateTime.now().minusHours(1))
                 .build();
 
-        testPosts = Arrays.asList(testPost, testPost2);
+        // Order posts by popularity score descending for trending tests
+        testPosts = Arrays.asList(testPost2, testPost);
     }
 
     @Test
@@ -92,8 +97,9 @@ class QueryPostServiceTest {
         Pageable pageable = PageRequest.of(page, size);
         Page<ReadPost> expectedPage = new PageImpl<>(testPosts, pageable, testPosts.size());
         
-        when(cacheManager.getCache("posts")).thenReturn(cache);
-        when(cache.get(anyString())).thenReturn(null); // Cache miss
+        when(cacheManager.getCache("post_content")).thenReturn(postContentCache);
+        when(cacheManager.getCache("post_total")).thenReturn(postTotalCache);
+        when(postContentCache.get(anyString())).thenReturn(null); // Cache miss
         when(readPostRepository.findAllByOrderByCreatedAtDesc(pageable)).thenReturn(expectedPage);
 
         // When
@@ -114,12 +120,13 @@ class QueryPostServiceTest {
         // Given
         int page = 0, size = 10;
         
-        when(cacheManager.getCache("posts")).thenReturn(cache);
-        when(cache.get("posts_content_0_10")).thenReturn(new Cache.ValueWrapper() {
+        when(cacheManager.getCache("post_content")).thenReturn(postContentCache);
+        when(cacheManager.getCache("post_total")).thenReturn(postTotalCache);
+        when(postContentCache.get("posts_content_0_10")).thenReturn(new Cache.ValueWrapper() {
             @Override
             public Object get() { return testPosts; }
         });
-        when(cache.get("posts_total")).thenReturn(new Cache.ValueWrapper() {
+        when(postTotalCache.get("posts_total")).thenReturn(new Cache.ValueWrapper() {
             @Override
             public Object get() { return 2L; }
         });
@@ -292,8 +299,9 @@ class QueryPostServiceTest {
         Pageable pageable = PageRequest.of(page, size);
         Page<ReadPost> emptyPage = new PageImpl<>(List.of(), pageable, 0);
         
-        when(cacheManager.getCache("posts")).thenReturn(cache);
-        when(cache.get(anyString())).thenReturn(null); // Cache miss
+        when(cacheManager.getCache("post_content")).thenReturn(postContentCache);
+        when(cacheManager.getCache("post_total")).thenReturn(postTotalCache);
+        when(postContentCache.get(anyString())).thenReturn(null); // Cache miss
         when(readPostRepository.findAllByOrderByCreatedAtDesc(pageable)).thenReturn(emptyPage);
 
         // When
@@ -308,22 +316,14 @@ class QueryPostServiceTest {
     }
 
     @Test
-    @DisplayName("Should handle zero or negative page sizes")
-    void getAllPosts_WithInvalidPageSize_ShouldStillMakeRepositoryCall() {
+    @DisplayName("Should handle invalid page sizes by validating them")
+    void getAllPosts_WithInvalidPageSize_ShouldValidatePageSize() {
         // Given
         int page = 0, size = 0;
-        Pageable pageable = PageRequest.of(page, size);
-        Page<ReadPost> emptyPage = new PageImpl<>(List.of(), pageable, 0);
         
-        when(cacheManager.getCache("posts")).thenReturn(cache);
-        when(cache.get(anyString())).thenReturn(null); // Cache miss
-        when(readPostRepository.findAllByOrderByCreatedAtDesc(pageable)).thenReturn(emptyPage);
-
-        // When
-        Page<ReadPost> result = queryPostService.getAllPosts(page, size);
-
-        // Then
-        assertThat(result).isNotNull();
-        verify(readPostRepository).findAllByOrderByCreatedAtDesc(pageable);
+        // When & Then - Should throw IllegalArgumentException for invalid page size
+        assertThrows(IllegalArgumentException.class, () -> {
+            queryPostService.getAllPosts(page, size);
+        });
     }
 }

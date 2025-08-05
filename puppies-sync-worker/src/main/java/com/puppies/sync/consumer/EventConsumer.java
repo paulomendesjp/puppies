@@ -22,19 +22,31 @@ public class EventConsumer {
 
     @RabbitListener(queues = "puppies.post.created.queue")
     public void handlePostCreated(PostCreatedEvent event) {
-        log.info("🔄 Processing PostCreatedEvent: {}", event.getPostId());
+        if (event != null) {
+            log.info("🔄 Processing PostCreatedEvent: {}", event.getPostId());
+        } else {
+            log.warn("⚠️ Received null PostCreatedEvent");
+        }
         readStoreUpdateService.handlePostCreated(event);
     }
 
     @RabbitListener(queues = "puppies.post.liked.queue")
     public void handlePostLiked(PostLikedEvent event) {
-        log.info("❤️ Processing PostLikedEvent: {}", event.getPostId());
+        if (event != null) {
+            log.info("❤️ Processing PostLikedEvent: {}", event.getPostId());
+        } else {
+            log.warn("⚠️ Received null PostLikedEvent");
+        }
         readStoreUpdateService.handlePostLiked(event);
     }
 
     @RabbitListener(queues = "puppies.user.created.queue")
     public void handleUserCreated(UserCreatedEvent event) {
-        log.info("👤 Processing UserCreatedEvent: {}", event.getUserId());
+        if (event != null) {
+            log.info("👤 Processing UserCreatedEvent: {}", event.getUserId());
+        } else {
+            log.warn("⚠️ Received null UserCreatedEvent");
+        }
         readStoreUpdateService.handleUserCreated(event);
     }
 }
