@@ -27,11 +27,12 @@ public class AuthController {
      * Authenticate user and return JWT token.
      * 
      * POST /api/auth/token
+     * POST /api/auth/login (alias)
      * 
      * @param request Authentication request with email and password
      * @return JWT token and user information
      */
-    @PostMapping("/token")
+    @PostMapping({"/token", "/login"})
     public ResponseEntity<?> authenticate(@Valid @RequestBody AuthRequest request) {
         try {
             AuthResponse response = authService.authenticate(request);
