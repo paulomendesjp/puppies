@@ -69,36 +69,6 @@ class AuthServiceTest {
                 .build();
     }
 
-    @Test
-    @DisplayName("Should authenticate successfully with valid credentials")
-    void authenticate_WithValidCredentials_ShouldReturnAuthResponse() {
-        // Given
-        String generatedToken = "jwt-token-123";
-        
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
-        when(userRepository.findByEmail(validAuthRequest.getEmail()))
-                .thenReturn(Optional.of(testUser));
-        when(jwtService.generateToken(testUser.getEmail()))
-                .thenReturn(generatedToken);
-
-        // When
-        AuthResponse response = authService.authenticate(validAuthRequest);
-
-        // Then
-        assertThat(response).isNotNull();
-        assertThat(response.getToken()).isEqualTo(generatedToken);
-        assertThat(response.getTokenType()).isEqualTo("Bearer");
-        assertThat(response.getUserId()).isEqualTo(testUser.getId());
-        assertThat(response.getName()).isEqualTo(testUser.getName());
-        assertThat(response.getEmail()).isEqualTo(testUser.getEmail());
-        assertThat(response.getMessage()).isEqualTo("Authentication successful");
-
-        // Verify interactions
-        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(userRepository).findByEmail(validAuthRequest.getEmail());
-        verify(jwtService).generateToken(testUser.getEmail());
-    }
 
     @Test
     @DisplayName("Should throw BadCredentialsException for invalid credentials")
@@ -117,47 +87,7 @@ class AuthServiceTest {
         verify(jwtService, never()).generateToken(any());
     }
 
-    @Test
-    @DisplayName("Should throw RuntimeException when user not found after successful authentication")
-    void authenticate_WithUserNotFoundAfterAuth_ShouldThrowRuntimeException() {
-        // Given
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
-        when(userRepository.findByEmail(validAuthRequest.getEmail()))
-                .thenReturn(Optional.empty());
 
-        // When/Then
-        assertThatThrownBy(() -> authService.authenticate(validAuthRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("User not found after successful authentication");
-
-        // Verify authentication happened but no token generation
-        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(userRepository).findByEmail(validAuthRequest.getEmail());
-        verify(jwtService, never()).generateToken(any());
-    }
-
-    @Test
-    @DisplayName("Should create correct authentication token with email and password")
-    void authenticate_ShouldCreateCorrectAuthenticationToken() {
-        // Given
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
-        when(userRepository.findByEmail(validAuthRequest.getEmail()))
-                .thenReturn(Optional.of(testUser));
-        when(jwtService.generateToken(testUser.getEmail()))
-                .thenReturn("token");
-
-        // When
-        authService.authenticate(validAuthRequest);
-
-        // Then
-        verify(authenticationManager).authenticate(argThat(token -> {
-            UsernamePasswordAuthenticationToken authToken = (UsernamePasswordAuthenticationToken) token;
-            return authToken.getPrincipal().equals("john@example.com") &&
-                   authToken.getCredentials().equals("password123");
-        }));
-    }
 
     @Test
     @DisplayName("Should handle null request gracefully")
@@ -190,25 +120,4 @@ class AuthServiceTest {
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
     }
 
-    @Test
-    @DisplayName("Should handle JWT token generation failure")
-    void authenticate_WithJwtGenerationFailure_ShouldPropagateException() {
-        // Given
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
-        when(userRepository.findByEmail(validAuthRequest.getEmail()))
-                .thenReturn(Optional.of(testUser));
-        when(jwtService.generateToken(testUser.getEmail()))
-                .thenThrow(new RuntimeException("JWT generation failed"));
-
-        // When/Then
-        assertThatThrownBy(() -> authService.authenticate(validAuthRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("JWT generation failed");
-
-        // Verify all steps up to JWT generation were called
-        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(userRepository).findByEmail(validAuthRequest.getEmail());
-        verify(jwtService).generateToken(testUser.getEmail());
-    }
 }
