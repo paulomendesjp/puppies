@@ -1,0 +1,13 @@
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/event/PostCreatedEvent.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/repository/ReadFeedItemRepository.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/config/RabbitMQConfig.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/event/PostLikedEvent.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/model/ReadFeedItem.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/repository/ReadPostRepository.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/service/ReadStoreUpdateService.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/model/ReadUserProfile.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/PuppiesSyncWorkerApplication.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/consumer/EventConsumer.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/repository/ReadUserProfileRepository.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/event/UserCreatedEvent.java
+/Users/joaopaulomendes/work/desafio_red/puppies-ecosystem/puppies-sync-worker/src/main/java/com/puppies/sync/model/ReadPost.java

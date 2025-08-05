@@ -1,0 +1,85 @@
+version: '3.8'
+
+# Puppies CQRS Ecosystem - Infrastructure Only
+# This docker-compose provides all the infrastructure services for the CQRS architecture:
+# - Write Database (Command Store)
+# - Read Database (Query Store) 
+# - Redis Cache
+# - RabbitMQ Message Broker
+#
+# Applications (command-api, query-api, sync-worker) run locally with Maven
+
+services:
+  # WRITE DATABASE - PostgreSQL for normalized data (Command side)
+  postgres-write:
+    image: postgres:15-alpine
+    container_name: puppies-postgres-write
+    environment:
+      POSTGRES_DB: puppies_write
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_write_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d puppies_write"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # READ DATABASE - PostgreSQL for denormalized data (Query side)  
+  postgres-read:
+    image: postgres:15-alpine
+    container_name: puppies-postgres-read
+    environment:
+      POSTGRES_DB: puppies_read
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_read_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d puppies_read"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # REDIS CACHE - For query optimization and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: puppies-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RABBITMQ - Message broker for CQRS event-driven communication
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: puppies-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI (http://localhost:15672)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_write_data:
+  postgres_read_data:
+  redis_data:
+  rabbitmq_data:
