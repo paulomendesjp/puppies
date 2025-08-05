@@ -3,8 +3,7 @@ package com.puppies.api.command.controller;
 import com.puppies.api.command.dto.CreatePostRequest;
 import com.puppies.api.command.dto.CreatePostResponse;
 import com.puppies.api.command.service.PostCommandService;
-import com.puppies.api.exception.FileStorageException;
-import com.puppies.api.exception.ResourceNotFoundException;
+import com.puppies.api.common.constants.ApiConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:8000"})
+@CrossOrigin(origins = {ApiConstants.CorsOrigins.LOCALHOST_3000, ApiConstants.CorsOrigins.LOCALHOST_8000})
 public class PostCommandController {
 
     private final PostCommandService postCommandService;
@@ -38,26 +37,19 @@ public class PostCommandController {
      * @return Created post information
      */
     @PostMapping(consumes = "multipart/form-data")
-    public ResponseEntity<?> createPost(
+    public ResponseEntity<CreatePostResponse> createPost(
             @RequestParam("image") MultipartFile image,
             @RequestParam(value = "textContent", required = false) String textContent,
             Authentication authentication) {
         
-        try {
-            CreatePostRequest request = CreatePostRequest.builder()
-                    .textContent(textContent)
-                    .build();
+        CreatePostRequest request = CreatePostRequest.builder()
+                .textContent(textContent)
+                .build();
 
-            CreatePostResponse response = postCommandService.createPost(
-                    request, image, authentication.getName());
-            
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-            
-        } catch (FileStorageException e) {
-            log.warn("File upload failed: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ErrorResponse(e.getMessage(), "FILE_UPLOAD_FAILED"));
-        }
+        CreatePostResponse response = postCommandService.createPost(
+                request, image, authentication.getName());
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
@@ -70,16 +62,9 @@ public class PostCommandController {
      * @return Success response
      */
     @PostMapping("/{postId}/like")
-    public ResponseEntity<?> likePost(@PathVariable Long postId, Authentication authentication) {
-        try {
-            postCommandService.likePost(postId, authentication.getName());
-            return ResponseEntity.noContent().build();
-        } catch (ResourceNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(new ErrorResponse(e.getMessage(), "ALREADY_LIKED"));
-        }
+    public ResponseEntity<Void> likePost(@PathVariable Long postId, Authentication authentication) {
+        postCommandService.likePost(postId, authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -92,25 +77,8 @@ public class PostCommandController {
      * @return Success response
      */
     @DeleteMapping("/{postId}/like")
-    public ResponseEntity<?> unlikePost(@PathVariable Long postId, Authentication authentication) {
-        try {
-            postCommandService.unlikePost(postId, authentication.getName());
-            return ResponseEntity.noContent().build();
-        } catch (ResourceNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    /**
-     * Simple error response class for post operation failures.
-     */
-    public static class ErrorResponse {
-        public final String message;
-        public final String code;
-
-        public ErrorResponse(String message, String code) {
-            this.message = message;
-            this.code = code;
-        }
+    public ResponseEntity<Void> unlikePost(@PathVariable Long postId, Authentication authentication) {
+        postCommandService.unlikePost(postId, authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 }

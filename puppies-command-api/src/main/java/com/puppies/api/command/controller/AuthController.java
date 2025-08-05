@@ -3,11 +3,11 @@ package com.puppies.api.command.controller;
 import com.puppies.api.command.dto.AuthRequest;
 import com.puppies.api.command.dto.AuthResponse;
 import com.puppies.api.command.service.AuthService;
+import com.puppies.api.common.constants.ApiConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:8000"})
+@CrossOrigin(origins = {ApiConstants.CorsOrigins.LOCALHOST_3000, ApiConstants.CorsOrigins.LOCALHOST_8000})
 public class AuthController {
 
     private final AuthService authService;
@@ -33,27 +33,8 @@ public class AuthController {
      * @return JWT token and user information
      */
     @PostMapping({"/token", "/login"})
-    public ResponseEntity<?> authenticate(@Valid @RequestBody AuthRequest request) {
-        try {
-            AuthResponse response = authService.authenticate(request);
-            return ResponseEntity.ok(response);
-        } catch (AuthenticationException e) {
-            log.warn("Authentication failed for user: {}", request.getEmail());
-            return ResponseEntity.status(401)
-                    .body(new ErrorResponse("Invalid credentials", "AUTHENTICATION_FAILED"));
-        }
-    }
-
-    /**
-     * Simple error response class for authentication failures.
-     */
-    public static class ErrorResponse {
-        public final String message;
-        public final String code;
-
-        public ErrorResponse(String message, String code) {
-            this.message = message;
-            this.code = code;
-        }
+    public ResponseEntity<AuthResponse> authenticate(@Valid @RequestBody AuthRequest request) {
+        AuthResponse response = authService.authenticate(request);
+        return ResponseEntity.ok(response);
     }
 }

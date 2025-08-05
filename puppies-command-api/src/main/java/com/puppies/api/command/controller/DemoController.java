@@ -2,7 +2,11 @@ package com.puppies.api.command.controller;
 
 import com.puppies.api.command.dto.CreatePostRequest;
 import com.puppies.api.command.dto.CreatePostResponse;
+import com.puppies.api.command.service.DemoStatsService;
+import com.puppies.api.command.service.ImageDownloadService;
 import com.puppies.api.command.service.PostCommandService;
+import com.puppies.api.command.service.SystemHealthService;
+import com.puppies.api.common.constants.ApiConstants;
 import com.puppies.api.service.DogImageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -18,12 +22,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 /**
  * REST controller for demo operations with dog images API.
@@ -33,32 +33,19 @@ import java.util.Random;
 @RequestMapping("/api/demo")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:8000"})
+@CrossOrigin(origins = {ApiConstants.CorsOrigins.LOCALHOST_3000, ApiConstants.CorsOrigins.LOCALHOST_8000})
 @Tag(name = "🐕 Demo & Dog API", description = "Demo endpoints using Dog Images API and trending data")
 public class DemoController {
 
     private final DogImageService dogImageService;
     private final PostCommandService postCommandService;
+    private final ImageDownloadService imageDownloadService;
+    private final SystemHealthService systemHealthService;
+    private final DemoStatsService demoStatsService;
     private final RestTemplate restTemplate;
 
-    @Value("${app.query-api.base-url:http://localhost:8082}")
+    @Value("${app.query-api.base-url:" + ApiConstants.ApiUrls.DEFAULT_QUERY_API_BASE_URL + "}")
     private String queryApiBaseUrl;
-
-    private final Random random = new Random();
-    
-    // Demo content for random posts
-    private static final List<String> DOG_MESSAGES = Arrays.asList(
-        "Look at this adorable puppy! 🐶❤️",
-        "Just adopted this beautiful dog! 🏠🐕",
-        "Morning walk with my furry friend 🌅🚶‍♀️🐕",
-        "Puppy eyes that melt your heart 👀💕",
-        "Training session complete! Such a good boy! 🎾🏆",
-        "Lazy Sunday with my doggo 😴🐶",
-        "New toy, who dis? 🧸🐕",
-        "Beach day with the best companion! 🏖️🐕‍🦺",
-        "Guess who learned a new trick today? 🎪🐶",
-        "Dogs make everything better! ✨🐕"
-    );
 
     @Operation(summary = "🎲 Create Random Dog Post", 
                description = "Downloads a random dog image from external APIs, saves it locally, and creates a post like a manual upload",
@@ -71,10 +58,10 @@ public class DemoController {
             log.info("🎲 Downloading dog image from: {}", dogImageUrl);
             
             // Download the image and convert to MultipartFile
-            MultipartFile imageFile = downloadImageAsMultipartFile(dogImageUrl);
+            MultipartFile imageFile = imageDownloadService.downloadImageAsMultipartFile(dogImageUrl);
             
             // Get random message
-            String randomMessage = DOG_MESSAGES.get(random.nextInt(DOG_MESSAGES.size()));
+            String randomMessage = demoStatsService.getRandomDogMessage();
             
             log.info("📸 Creating post with downloaded image (size: {} bytes)", imageFile.getSize());
             
@@ -261,23 +248,23 @@ public class DemoController {
             @RequestParam(defaultValue = "5") int count,
             Authentication authentication) {
         
-        if (count > 10) {
+        if (count > ApiConstants.BusinessRules.MAX_DEMO_POSTS) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Maximum 10 posts allowed"));
+                    .body(Map.of("error", ApiConstants.ErrorMessages.MAX_POSTS_EXCEEDED));
         }
         
         try {
             for (int i = 0; i < count; i++) {
                 String dogImageUrl = dogImageService.getRandomDogImage();
-                String randomMessage = DOG_MESSAGES.get(random.nextInt(DOG_MESSAGES.size()));
+                String randomMessage = demoStatsService.getRandomDogMessage(i + 1);
                 
                 log.info("📥 Creating post #{} - downloading image from: {}", (i + 1), dogImageUrl);
                 
                 // Download the image and convert to MultipartFile
-                MultipartFile imageFile = downloadImageAsMultipartFile(dogImageUrl);
+                MultipartFile imageFile = imageDownloadService.downloadImageAsMultipartFile(dogImageUrl);
                 
                 CreatePostRequest request = CreatePostRequest.builder()
-                        .textContent(randomMessage + " (Demo Post #" + (i + 1) + ")")
+                        .textContent(randomMessage)
                         .build();
 
                 // Use normal post creation with local file storage
@@ -286,7 +273,7 @@ public class DemoController {
                 log.info("✅ Created post #{} with local image (size: {} bytes)", (i + 1), imageFile.getSize());
                 
                 // Small delay to avoid overwhelming the APIs
-                Thread.sleep(500);
+                Thread.sleep(ApiConstants.BusinessRules.DEMO_POST_DELAY_MS);
             }
             
             return ResponseEntity.ok(Map.of(
@@ -306,17 +293,7 @@ public class DemoController {
     @GetMapping("/stats")
     public ResponseEntity<?> getDemoStats() {
         try {
-            return ResponseEntity.ok(Map.of(
-                "availableBreeds", Arrays.asList("golden-retriever", "labrador", "husky", "bulldog", "poodle", 
-                                                "german-shepherd", "beagle", "rottweiler", "yorkie", "chihuahua"),
-                "dogApiEndpoints", Arrays.asList("https://dog.ceo/api/breeds/image/random", 
-                                                "https://random.dog/woof.json"),
-                "demoMessages", DOG_MESSAGES.size(),
-                "commandApiPort", 8081,
-                "queryApiPort", 8082,
-                "syncWorkerPort", 8083,
-                "message", "Demo system ready! 🚀"
-            ));
+            return ResponseEntity.ok(demoStatsService.getDemoStats());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to get stats: " + e.getMessage()));
@@ -327,178 +304,7 @@ public class DemoController {
                description = "Check health of all system components (Command API, Query API, Sync Worker, External APIs)")
     @GetMapping("/health")
     public ResponseEntity<?> getSystemHealth() {
-        Map<String, Object> health = new java.util.HashMap<>();
-        
-        // Check Command API (self)
-        health.put("commandApi", Map.of("status", "UP", "port", 8081));
-        
-        // Check Query API
-        try {
-            restTemplate.getForObject(queryApiBaseUrl + "/actuator/health", Object.class);
-            health.put("queryApi", Map.of("status", "UP", "port", 8082, "url", queryApiBaseUrl));
-        } catch (Exception e) {
-            health.put("queryApi", Map.of(
-                "status", "DOWN", 
-                "port", 8082, 
-                "url", queryApiBaseUrl,
-                "error", e.getMessage(),
-                "solution", "Start with: ./start-query-api.sh"
-            ));
-        }
-        
-        // Check Sync Worker
-        try {
-            restTemplate.getForObject("http://localhost:8083/actuator/health", Object.class);
-            health.put("syncWorker", Map.of("status", "UP", "port", 8083));
-        } catch (Exception e) {
-            health.put("syncWorker", Map.of(
-                "status", "DOWN", 
-                "port", 8083,
-                "error", e.getMessage(),
-                "solution", "Start with: ./start-sync-worker.sh"
-            ));
-        }
-        
-        // Check Dog APIs
-        health.put("dogApis", dogImageService.getHealthStatus());
-        
-        // Overall status
-        boolean allUp = true;
-        for (Object component : health.values()) {
-            if (component instanceof Map && "DOWN".equals(((Map<?, ?>) component).get("status"))) {
-                allUp = false;
-                break;
-            }
-        }
-        
-        health.put("overall", Map.of(
-            "status", allUp ? "UP" : "DEGRADED",
-            "timestamp", java.time.LocalDateTime.now(),
-            "message", allUp ? "All systems operational! 🟢" : "Some components are down 🟡"
-        ));
-        
-        return ResponseEntity.ok(health);
+        return ResponseEntity.ok(systemHealthService.getSystemHealth());
     }
 
-    /**
-     * Helper method to download an image from URL and convert to MultipartFile
-     */
-    private MultipartFile downloadImageAsMultipartFile(String imageUrl) throws IOException {
-        try {
-            log.debug("📥 Downloading image from: {}", imageUrl);
-            
-            // Download image bytes
-            byte[] imageBytes = restTemplate.getForObject(imageUrl, byte[].class);
-            
-            if (imageBytes == null || imageBytes.length == 0) {
-                throw new IOException("Downloaded image is empty");
-            }
-            
-            // Determine file extension from URL
-            String filename = extractFilename(imageUrl);
-            String contentType = determineContentType(filename);
-            
-            log.debug("📸 Downloaded image: {} bytes, type: {}, filename: {}", 
-                     imageBytes.length, contentType, filename);
-            
-            // Create MultipartFile from bytes
-            return new CustomMultipartFile(imageBytes, filename, contentType);
-            
-        } catch (Exception e) {
-            log.error("Failed to download image from: {}", imageUrl, e);
-            throw new IOException("Failed to download image: " + e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * Extract filename from URL
-     */
-    private String extractFilename(String imageUrl) {
-        try {
-            String path = new java.net.URL(imageUrl).getPath();
-            String filename = path.substring(path.lastIndexOf('/') + 1);
-            
-            // If no extension, add .jpg as default
-            if (!filename.contains(".")) {
-                filename += ".jpg";
-            }
-            
-            // If filename is empty or just extension, generate one
-            if (filename.startsWith(".") || filename.length() < 3) {
-                filename = "dog_" + System.currentTimeMillis() + ".jpg";
-            }
-            
-            return filename;
-        } catch (Exception e) {
-            return "dog_" + System.currentTimeMillis() + ".jpg";
-        }
-    }
-    
-    /**
-     * Determine content type from filename
-     */
-    private String determineContentType(String filename) {
-        String lower = filename.toLowerCase();
-        if (lower.endsWith(".png")) return "image/png";
-        if (lower.endsWith(".gif")) return "image/gif";
-        if (lower.endsWith(".webp")) return "image/webp";
-        return "image/jpeg"; // Default to JPEG
-    }
-    
-    /**
-     * Custom MultipartFile implementation for downloaded images
-     */
-    private static class CustomMultipartFile implements MultipartFile {
-        private final byte[] content;
-        private final String filename;
-        private final String contentType;
-        
-        public CustomMultipartFile(byte[] content, String filename, String contentType) {
-            this.content = content;
-            this.filename = filename;
-            this.contentType = contentType;
-        }
-        
-        @Override
-        public String getName() {
-            return "image";
-        }
-        
-        @Override
-        public String getOriginalFilename() {
-            return filename;
-        }
-        
-        @Override
-        public String getContentType() {
-            return contentType;
-        }
-        
-        @Override
-        public boolean isEmpty() {
-            return content.length == 0;
-        }
-        
-        @Override
-        public long getSize() {
-            return content.length;
-        }
-        
-        @Override
-        public byte[] getBytes() {
-            return content;
-        }
-        
-        @Override
-        public java.io.InputStream getInputStream() {
-            return new ByteArrayInputStream(content);
-        }
-        
-        @Override
-        public void transferTo(java.io.File dest) throws IOException {
-            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(dest)) {
-                fos.write(content);
-            }
-        }
-    }
 }
